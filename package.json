@@ -1,7 +1,7 @@
 {
 	"name": "@prefig/upact-atproto",
 	"version": "0.1.0",
-	"description": "ATProto (Bluesky) sign-in adapter for upact: DID-based authentication over @atproto/oauth-client-node, the first shipped consumer of Decision 7 (continuation). Authentication only, not admission.",
+	"description": "ATProto (Bluesky) adapter for upact.",
 	"license": "Apache-2.0",
 	"type": "module",
 	"main": "./dist/index.js",
