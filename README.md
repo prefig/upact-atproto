@@ -1,81 +1,70 @@
 # @prefig/upact-atproto
 
-ATProto (Bluesky) sign-in adapter for [upact](https://github.com/prefig/upact).
+ATProto (Bluesky) adapter for [upact](https://github.com/prefig/upact).
 Presents ATProto sign-in to an application as an upact `IdentityPort`: the
 application resolves a member-entered handle to an authorization server, sends
-the browser there, and — on the callback — receives an opaque, DID-derived
+the browser there, and on the callback receives an opaque, DID-derived
 `Upactor` with the privacy minima the port guarantees. OAuth over
 `@atproto/oauth-client-node` (PAR, PKCE, DPoP); the sign-in tokens are revoked
 the moment the DID is read.
 
-## What this owns: the substrate edge, and only that
-
-This package is the extraction of the authentication half of dyad's inline
-ATProto provider. It owns:
+## What the adapter does
 
 - **handle→DID resolution** (`resolveHandleToDid`): well-known first
   (authoritative for custom-domain handles), then the public AppView.
-- **the OAuth client** (client metadata, in-memory state/session stores, the
-  module singleton spanning authorize→callback); PAR, PKCE, and DPoP all live
-  inside the library.
-- **`beginAuthorization(handle)`** — the start step, an out-of-port extension.
-  No credential exists yet, so it is deliberately *not* `authenticate()`
-  (pattern: upact-oidc's `buildAuthRedirect`).
-- **`authenticate(callbackParams)`** — the terminal exchange: it runs the
-  client's callback, reads the DID, revokes the OAuth session (best-effort
-  `signOut`), and returns an opaque `Session` wrapping the mapped `Upactor`.
-- **`upactorForSession(session)`** — reads the resolved `Upactor` back out of
-  that Session (see "Reading the identity back").
+- **the OAuth client**: client metadata, in-memory state and session stores,
+  and a module singleton spanning authorize→callback; PAR, PKCE, and DPoP all
+  live inside the library.
+- **`beginAuthorization(handle)`** starts the flow and returns the
+  authorization URL to send the browser to.
+- **`authenticate(callbackParams)`** completes it: runs the client's callback,
+  reads the DID, revokes the OAuth session (best-effort `signOut`), and
+  returns an opaque `Session` wrapping the mapped `Upactor`.
+- **`upactorForSession(session)`** reads the resolved `Upactor` back out of
+  that Session, so the application can run its own admission check and mint
+  its own session.
 
-It does **not** own admission, waitlists, application session cookies, or
-anything touching a data store. Those stay in the consuming application (in
-dyad: `hasScopeGrant`, the pending-token flow, the HS256 `ScopeSession`,
-Supabase). See "Not admission."
+Admission, waitlists, application session cookies, and the data store belong
+to the consuming application; the adapter ends at the verified identity.
 
-## Not admission (F7)
+## Authentication and admission
 
 A completed `authenticate()` proves the person controls a DID. Anyone on the
-ATProto network has one, so authentication is universal — it says nothing about
-whether the person may enter your application. Admission is a separate fact your
-application owns and must check itself, against durable state, on the callback
-(F8). This adapter has no admission scope in its config and no code path that
-gates on entitlement; the OAuth `scope` it requests is the fixed `'atproto'`
-identity scope, unrelated to any application scope you grant.
+ATProto network has one, so authentication is universal and says nothing about
+whether the person may enter your application. Admission is a separate fact
+your application owns: check it against durable state on the callback, every
+time. The OAuth `scope` the adapter requests is the fixed `'atproto'` identity
+scope, unrelated to any application scope you grant.
 
-This is the open-enrolment case (cross-adapter-findings F7), unlike a
-closed-enrolment substrate where possession of the credential *is* admission
-because the community issued it. An application that treats an ATProto sign-in
-as admission is using this adapter against its design.
+This differs from a credential a community issues itself, where possession is
+admission because the community controlled issuance. An ATProto credential is
+open enrolment: treat it as proof of identity, and decide entry yourself.
 
-## Identity is portable, and stable
+## The member id survives a PDS move
 
-`Upactor.id` = SHA-256(did) truncated to 32 hex characters. This package is the
-first shipped consumer of the deferred upact Decision 7 (`continuation`): the
-DID is the durable anchor and the PDS is only its current host, so the id is
-**stable across a PDS migration** (F11) — strictly stronger than the Mastodon
-adapter's per-instance actor-URL id, which does not survive an instance move.
+`Upactor.id` = SHA-256(did) truncated to 32 hex characters. The DID is the
+durable anchor and the PDS is only its current host, so the id is stable
+across a PDS migration. The Mastodon adapter's per-instance actor-URL id does
+not survive an instance move; a DID-derived id does.
 
 `provenance.instance` is the DID *method* (`did:plc`, `did:web`), not the PDS
-host, so provenance is as portable as the id. There is no `display_hint`: the
+host, so provenance travels with the id. There is no `display_hint`: the
 handle is passed to the authorization server as OAuth `state` and then
-discarded — the adapter learns the DID and nothing else.
+discarded, so the adapter learns the DID and no other attribute.
 
-## Install (local)
-
-This package consumes `@prefig/upact` (npm) and wraps
-`@atproto/oauth-client-node` (peer dependency).
+## Install
 
 ```
-npm install
-npm run build      # tsc -> dist/
-npm test           # vitest: resolution, callback exchange, mapper, 16-vector closure (52 tests)
-npm run typecheck
+npm install @prefig/upact-atproto @prefig/upact @atproto/oauth-client-node
 ```
+
+`@prefig/upact` and `@atproto/oauth-client-node` are peer dependencies.
+Node 22 or later (required by the OAuth client).
 
 ## Usage
 
-The application owns the HTTP surface and its own session; the adapter exposes
-the substrate edge (pattern: upact-oidc / upact-eudi).
+The application owns the HTTP surface and its own session; the adapter
+exposes the substrate edge (the same shape as upact-oidc and upact-eudi).
 
 ```typescript
 import { createAtprotoAdapter, resolveHandleToDid } from '@prefig/upact-atproto';
@@ -89,43 +78,43 @@ const port = createAtprotoAdapter({
 const authorizeUrl = await port.beginAuthorization('alice.bsky.social');
 // redirect the browser to authorizeUrl
 
-// 2. Callback route: exchange the params, then run YOUR admission + session.
+// 2. Callback route: exchange the params, then run your admission + session.
 const outcome = await port.authenticate({ kind: 'atproto-callback', params });
 if ('code' in outcome) {
-  // outcome is an AuthError — map it to your response
+  // outcome is an AuthError: map it to your response
 } else {
   const actor = port.upactorForSession(outcome)!;  // the resolved identity
-  actor.id;                       // SHA-256(did)[:32] — stable, portable
+  actor.id;                       // SHA-256(did)[:32], stable across a PDS move
   actor.provenance;               // { substrate: 'atproto', instance: 'did:plc' }
   actor.lifecycle;                // { renewable: 'reauth' }  (no standing credential)
 
-  // Admission, waitlist, session minting: YOUR territory, not the adapter's.
+  // Admission, waitlist, and session minting belong to your application:
   // e.g. if (await hasScopeGrant('atproto', actor.id, scope)) mintYourSession(actor.id);
 }
 ```
 
 `resolveHandleToDid`, `deriveMemberId`, `buildClientMetadata`, and `getClient`
 are also exported for applications that need the resolution or client pieces
-directly (dyad's admin scope-granting route resolves a handle to a member id
-this way).
+directly (for example, an admin route that resolves a handle to a member id
+when granting a scope).
 
-## Lifecycle: no standing credential
+## Lifecycle
 
 Sign-in exists to learn the DID. The OAuth session the callback produces is
 revoked immediately (`signOut`), so the adapter keeps no access token, no
-refresh token, and no DPoP key past the one `authenticate()` call. The `Upactor`
-lifecycle reflects this: `renewable: 'reauth'` (renewal is one redirect) with
-`expires_at` omitted rather than set (there is nothing to expire). `issueRenewal`
-returns `null` unconditionally; `invalidate` is an honest no-op. That the id is
-still stable across sign-ins comes from the DID, not from anything the adapter
-stores.
+refresh token, and no DPoP key past the one `authenticate()` call. The
+`Upactor` lifecycle reflects this: `renewable: 'reauth'` (renewal is one
+redirect) with `expires_at` omitted rather than set (there is nothing to
+expire). `issueRenewal` returns `null` unconditionally; `invalidate` is a
+no-op. The id stays stable across sign-ins because it derives from the DID,
+which outlives every session.
 
 ## Testing
 
 `npm test` runs the unit suites (52 tests) against an injected OAuth client
-double and a stubbed `fetch` — no external processes. It covers handle→DID
-resolution (both paths, unresolvable, URL-encoding), the callback exchange happy
-path and each error path, the honest-null port methods, `beginAuthorization`,
+double and a stubbed `fetch`, with no external processes. It covers handle→DID
+resolution (both paths, unresolvable, URL-encoding), the callback exchange
+happy path and each error path, the port methods, `beginAuthorization`,
 `upactorForSession`, the claims mapper, the client metadata (web vs loopback),
 and the sixteen-vector back-channel closure suite (SPEC §7.5). End-to-end
 verification against a live PDS is deferred to the sandbox window.
@@ -135,8 +124,8 @@ verification against a live PDS is deferred to the sandbox window.
 - `CONFORMANCE.md`: the conformance statement (upact SPEC clauses, error
   mapping, evidence).
 - `docs/decisions.md`: reading the identity back (D1), lifecycle (D2),
-  identifier and provenance (D3), not-admission + module singleton (D4), error
-  normalisation (D5).
+  identifier and provenance (D3), admission boundary and module singleton
+  (D4), error normalisation (D5).
 
 ## Licence
 
