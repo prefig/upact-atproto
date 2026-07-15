@@ -1,0 +1,61 @@
+{
+	"name": "@prefig/upact-atproto",
+	"version": "0.1.0",
+	"description": "ATProto (Bluesky) sign-in adapter for upact: DID-based authentication over @atproto/oauth-client-node, the first shipped consumer of Decision 7 (continuation). Authentication only, not admission.",
+	"license": "Apache-2.0",
+	"type": "module",
+	"main": "./dist/index.js",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"files": [
+		"dist",
+		"README.md",
+		"CONFORMANCE.md",
+		"LICENSE"
+	],
+	"engines": {
+		"node": ">=22"
+	},
+	"sideEffects": false,
+	"publishConfig": {
+		"access": "public"
+	},
+	"keywords": [
+		"upact",
+		"identity-port",
+		"atproto",
+		"bluesky",
+		"did",
+		"oauth",
+		"dpop",
+		"anti-corruption-layer",
+		"privacy-by-design"
+	],
+	"author": "Theodore Evans",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/prefig/upact-atproto.git"
+	},
+	"scripts": {
+		"build": "tsc",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"typecheck": "tsc --noEmit",
+		"prepublishOnly": "npm run build && npm test"
+	},
+	"peerDependencies": {
+		"@atproto/oauth-client-node": "^0.4.8",
+		"@prefig/upact": "^0.1.1"
+	},
+	"devDependencies": {
+		"@atproto/oauth-client-node": "^0.4.8",
+		"@prefig/upact": "^0.1.1",
+		"@types/node": "^22.20.1",
+		"typescript": "^5.9.3",
+		"vitest": "^3.2.7"
+	}
+}
