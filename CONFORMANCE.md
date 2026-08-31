@@ -1,7 +1,7 @@
 # Conformance: @prefig/upact-atproto
 
-**Spec version:** upact v0.1.2
-**Package version:** 0.1.0
+**Spec version:** upact v0.2
+**Package version:** 0.2.0
 **Date:** 2026-07-15
 
 ## Substrate
@@ -75,12 +75,15 @@ surfaces no identity-existence distinction, and the catch-all is the honest
 
 ## Session opacity (SPEC §7.4)
 
-This adapter uses `createSession` from `@prefig/upact`. The Session opaquely
-holds only the mapped `Upactor`; the resolved DID never appears on it (only its
-hash, as `Upactor.id`), and no OAuth token is ever placed in it (the tokens are
-revoked before `authenticate()` returns). Recovery is via `_unwrapSession`
-inside the adapter only, surfaced to the application through the
-`upactorForSession` extension (D1). `invalidate` is an honest no-op: the OAuth
+This adapter uses `createSessionBox` from `@prefig/upact/internal`: one box is
+created per adapter instance inside the factory closure, and only that
+instance can unseal the Sessions it seals. The Session opaquely holds only the
+mapped `Upactor`; the resolved DID never appears on it (only its hash, as
+`Upactor.id`), and no OAuth token is ever placed in it (the tokens are revoked
+before `authenticate()` returns). Recovery is via `box.unseal` inside the
+adapter only, surfaced to the application through the `upactorForSession`
+extension (D1); a session from another instance is foreign there and resolves
+to `null`. `invalidate` is an honest no-op: the OAuth
 session was already revoked, and the application owns and clears its own
 session.
 
@@ -108,7 +111,7 @@ names (`config`, the SPEC §7.5-named `client`, `did`, `_client`), spread,
 replacer-wrapped stringify, and Object.entries; a final vector asserts the
 opaque Session does not surface the DID either. The OAuth client is a module
 singleton held outside the adapter object; the injected client double is held in
-closure. The DID lives only inside the process-local opaque-session WeakMap.
+closure. The DID lives only inside the adapter instance's session-box WeakMap.
 
 ## Identifier derivation (SPEC §4.4, §7.3; Decision 7 / F11)
 

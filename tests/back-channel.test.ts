@@ -8,7 +8,8 @@ import type { AtprotoConfig, AtprotoOAuthClient, Session } from '../src/index.js
  * adapters' back-channel suites. The resolved DID and the OAuth client's
  * internals MUST be unreachable through the adapter instance via any common
  * reflection path. The DID lives only inside the opaque Session
- * (createSession's process-local WeakMap); the client lives only in closure.
+ * (the adapter instance's session box — a per-instance WeakMap from
+ * createSessionBox); the client lives only in closure.
  */
 
 const SENTINEL_DID = 'did:plc:SENTINELdidVALUEmustNOTleak';

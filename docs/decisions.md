@@ -146,3 +146,16 @@ round trip. `identity_unavailable` and `auth_failed` are not emitted: the
 substrate surfaces no identity-existence distinction, and the catch-all is the
 honest `credential_rejected` (dyad's inline provider mapped every callback
 failure to a single rejection, which this preserves).
+
+## D6. 2026-08-31: per-instance session boxes supersede `createSession`/`_unwrapSession`
+
+upact v0.2 replaced the global `createSession` / `_unwrapSession` pair (and
+its process-local WeakMap) with `createSessionBox` from
+`@prefig/upact/internal`: one box per adapter instance, created in the
+factory closure. D1 above describes the old mechanism as it stood and is
+left unchanged. The practical consequence: `upactorForSession` now returns
+`null` for any Session this adapter *instance* did not produce, not merely
+this process — a second instance of the same adapter cannot resolve the
+first's sessions. D1's flow is unaffected, since the callback exchange and
+the establish handler run on the same request and therefore the same
+adapter instance.

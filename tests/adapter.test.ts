@@ -135,6 +135,20 @@ describe('upactorForSession', () => {
 		const foreign = { _opaque: Symbol('x') } as unknown as Session;
 		expect(adapter.upactorForSession(foreign)).toBeNull();
 	});
+
+	it('cross-instance opacity: a second instance of the adapter treats the first\'s session as foreign', async () => {
+		// Per-instance session boxes (upact v0.2): each instance seals with
+		// its own box, so instance B cannot unseal a session instance A
+		// produced — upactorForSession on B returns null, while A still
+		// resolves it.
+		const adapterA = createAtprotoAdapter(CONFIG, fakeClient());
+		const adapterB = createAtprotoAdapter(CONFIG, fakeClient());
+		const outcome = await adapterA.authenticate(callbackCredential());
+		expect(isAuthError(outcome)).toBe(false);
+		const session = outcome as Session;
+		expect(adapterB.upactorForSession(session)).toBeNull();
+		expect(adapterA.upactorForSession(session)?.id).toBe(deriveMemberId(DID));
+	});
 });
 
 describe('honest-null port methods', () => {

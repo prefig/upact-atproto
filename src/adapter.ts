@@ -30,8 +30,7 @@
  */
 
 import type { AuthError, IdentityPort, Session, Upactor } from '@prefig/upact';
-import { createSession } from '@prefig/upact';
-import { _unwrapSession } from '@prefig/upact/internal';
+import { createSessionBox } from '@prefig/upact/internal';
 import { ATPROTO_SCOPE, getClient } from './client.js';
 import { mapDidToUpactor } from './claims-mapper.js';
 import type { AtprotoConfig, AtprotoCredential, AtprotoOAuthClient } from './types.js';
@@ -48,16 +47,17 @@ export interface AtprotoAdapterExtensions {
 	beginAuthorization(handle: string): Promise<URL>;
 	/**
 	 * Surfaces the Upactor for a Session that authenticate() returned. Returns
-	 * null for a Session this adapter did not produce (including any session
-	 * created before a process restart, since the opaque-session table is
-	 * process-local). This is how the application reads the resolved identity
+	 * null for a Session this adapter instance did not produce (each instance
+	 * holds its own session box, so a session from another instance — or from
+	 * before a process restart — is foreign here). This is how the
+	 * application reads the resolved identity
 	 * (opaque id, lifecycle, provenance) without the adapter owning any app
 	 * session or cookie (docs/decisions.md D1).
 	 */
 	upactorForSession(session: Session): Upactor | null;
 }
 
-/** What the opaque Session holds (recovered only via _unwrapSession). */
+/** What the opaque Session holds (recovered only via the instance's box.unseal). */
 interface AtprotoSessionData {
 	upactor: Upactor;
 }
@@ -76,6 +76,10 @@ export function createAtprotoAdapter(
 	function client(): AtprotoOAuthClient {
 		return _client ?? getClient(config);
 	}
+
+	// One session box per adapter instance: only sessions sealed by this
+	// instance can be unsealed here (SPEC §7.4).
+	const box = createSessionBox<AtprotoSessionData>();
 
 	// ——— IdentityPort ————————————————————————————————————————————————————————
 
@@ -102,7 +106,7 @@ export function createAtprotoAdapter(
 
 		const upactor = mapDidToUpactor(did);
 		const sessionData: AtprotoSessionData = { upactor };
-		return createSession(sessionData);
+		return box.seal(sessionData);
 	}
 
 	async function currentUpactor(_request: Request): Promise<Upactor | null> {
@@ -133,7 +137,7 @@ export function createAtprotoAdapter(
 	}
 
 	function upactorForSession(session: Session): Upactor | null {
-		const data = _unwrapSession<AtprotoSessionData>(session);
+		const data = box.unseal(session);
 		return data === undefined ? null : data.upactor;
 	}
 
