@@ -1,8 +1,8 @@
 # Conformance: @prefig/upact-atproto
 
-**Spec version:** upact v0.2
-**Package version:** 0.2.0
-**Date:** 2026-07-15
+**Spec version:** upact v0.3
+**Package version:** 0.3.0
+**Date:** 2026-09-01
 
 ## Substrate
 
@@ -75,14 +75,17 @@ surfaces no identity-existence distinction, and the catch-all is the honest
 
 ## Session opacity (SPEC §7.4)
 
-This adapter uses `createSessionBox` from `@prefig/upact/internal`: one box is
-created per adapter instance inside the factory closure, and only that
-instance can unseal the Sessions it seals. The Session opaquely holds only the
-mapped `Upactor`; the resolved DID never appears on it (only its hash, as
-`Upactor.id`), and no OAuth token is ever placed in it (the tokens are revoked
-before `authenticate()` returns). Recovery is via `box.unseal` inside the
-adapter only, surfaced to the application through the `upactorForSession`
-extension (D1); a session from another instance is foreign there and resolves
+The opaque Session marker comes from `createOpaqueSession` in
+`@prefig/upact/internal` (the hardened, frozen, null-prototype marker is
+constructed and audited in core); the association from Session to state is
+adapter-owned, in a per-instance `WeakMap` inside the factory closure, so only
+the instance that created a Session can resolve it. The Session itself holds
+nothing; the map associates it with only the mapped `Upactor` — the resolved
+DID never appears (only its hash, as `Upactor.id`), and no OAuth token is ever
+kept (the tokens are revoked before `authenticate()` returns). Recovery is via
+the instance's `sessions.get` inside the adapter only, surfaced to the
+application through the `upactorForSession` extension (D1); a session from
+another instance misses the map there and resolves
 to `null`. `invalidate` is an honest no-op: the OAuth
 session was already revoked, and the application owns and clears its own
 session.
@@ -111,7 +114,7 @@ names (`config`, the SPEC §7.5-named `client`, `did`, `_client`), spread,
 replacer-wrapped stringify, and Object.entries; a final vector asserts the
 opaque Session does not surface the DID either. The OAuth client is a module
 singleton held outside the adapter object; the injected client double is held in
-closure. The DID lives only inside the adapter instance's session-box WeakMap.
+closure. The DID lives only inside the adapter instance's session WeakMap.
 
 ## Identifier derivation (SPEC §4.4, §7.3; Decision 7 / F11)
 
@@ -147,7 +150,7 @@ re-presentation is a fresh `authenticate()` producing the same (stable) id.
 
 ## Conformance evidence
 
-`npm test` runs the unit suites (52 tests): handle→DID resolution (well-known
+`npm test` runs the unit suites (53 tests): handle→DID resolution (well-known
 then AppView fallback, unresolvable, URL-encoding), the callback exchange happy
 path and each error path, the honest-null port methods, `beginAuthorization`,
 `upactorForSession`, the claims mapper (id stability, DID-method provenance, no

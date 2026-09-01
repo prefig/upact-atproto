@@ -1,6 +1,6 @@
 {
 	"name": "@prefig/upact-atproto",
-	"version": "0.2.0",
+	"version": "0.3.0",
 	"description": "ATProto (Bluesky) adapter for upact.",
 	"license": "Apache-2.0",
 	"type": "module",
@@ -49,11 +49,11 @@
 	},
 	"peerDependencies": {
 		"@atproto/oauth-client-node": "^0.4.8",
-		"@prefig/upact": "^0.2.0"
+		"@prefig/upact": "^0.3.0"
 	},
 	"devDependencies": {
 		"@atproto/oauth-client-node": "^0.4.8",
-		"@prefig/upact": "^0.2.0",
+		"@prefig/upact": "^0.3.0",
 		"@types/node": "^22.20.1",
 		"typescript": "^5.9.3",
 		"vitest": "^3.2.7"

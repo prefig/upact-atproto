@@ -7,9 +7,9 @@ import type { AtprotoConfig, AtprotoOAuthClient, Session } from '../src/index.js
  * SPEC §7.5 — 16-vector closure-conformance test, parity with the sibling
  * adapters' back-channel suites. The resolved DID and the OAuth client's
  * internals MUST be unreachable through the adapter instance via any common
- * reflection path. The DID lives only inside the opaque Session
- * (the adapter instance's session box — a per-instance WeakMap from
- * createSessionBox); the client lives only in closure.
+ * reflection path. The DID lives only against the opaque Session
+ * (from core's createOpaqueSession) in the adapter instance's own
+ * per-instance WeakMap; the client lives only in closure.
  */
 
 const SENTINEL_DID = 'did:plc:SENTINELdidVALUEmustNOTleak';

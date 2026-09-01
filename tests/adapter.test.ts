@@ -137,8 +137,8 @@ describe('upactorForSession', () => {
 	});
 
 	it('cross-instance opacity: a second instance of the adapter treats the first\'s session as foreign', async () => {
-		// Per-instance session boxes (upact v0.2): each instance seals with
-		// its own box, so instance B cannot unseal a session instance A
+		// Per-instance session maps (upact v0.3): each instance keeps its own
+		// WeakMap, so instance B cannot resolve a session instance A
 		// produced — upactorForSession on B returns null, while A still
 		// resolves it.
 		const adapterA = createAtprotoAdapter(CONFIG, fakeClient());

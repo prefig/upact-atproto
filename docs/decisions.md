@@ -159,3 +159,16 @@ this process — a second instance of the same adapter cannot resolve the
 first's sessions. D1's flow is unaffected, since the callback exchange and
 the establish handler run on the same request and therefore the same
 adapter instance.
+
+## D7. 2026-09-01: adapter-owned session state supersedes the session box
+
+upact v0.3 removed `createSessionBox`: core now exports only
+`createOpaqueSession` from `@prefig/upact/internal`, which constructs the
+hardened opaque marker and stores nothing. The value-to-session association
+is the adapter's own business — this adapter keeps one
+`WeakMap<Session, AtprotoSessionData>` per instance in the factory closure,
+set at the seal site in `authenticate` and read in `upactorForSession`.
+`WeakMap.get` returns `undefined` for a foreign, fabricated, or cloned
+Session, so the D6 semantics are unchanged: a session is only meaningful to
+the adapter instance that created it. D6 describes the old mechanism as it
+stood and is left unchanged.

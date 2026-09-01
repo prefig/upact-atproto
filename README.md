@@ -111,7 +111,7 @@ which outlives every session.
 
 ## Testing
 
-`npm test` runs the unit suites (52 tests) against an injected OAuth client
+`npm test` runs the unit suites (53 tests) against an injected OAuth client
 double and a stubbed `fetch`, with no external processes. It covers handle→DID
 resolution (both paths, unresolvable, URL-encoding), the callback exchange
 happy path and each error path, the port methods, `beginAuthorization`,
